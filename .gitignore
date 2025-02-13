@@ -1,0 +1,4 @@
+venv/
+pybase-ui/node_modules/
+*.pyc
+__pycache__/
