@@ -1,23 +1,31 @@
 import ctypes
 import os
-import sys
 
-# Select DLL or SO based on OS
-if sys.platform.startswith("win"):
-    lib_name = "crypter.dll"
-else:
-    lib_name = "crypter.so"
+# Get the absolute path of test.dll
 
-dll_path = os.path.abspath(f"D:\Projects\PyBase\pybase_cpp\{lib_name}")
-crypter = ctypes.CDLL(dll_path, mode=ctypes.RTLD_GLOBAL)
+import ctypes
 
+def load_encrypt_dll():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    dll_path = os.path.join(script_dir, "crypter.dll")
+    # Load the DLL
+    encrypt_lib = ctypes.CDLL(dll_path)
 
-# Define function signatures (same as before)
-crypter.encrypt_text.argtypes = [ctypes.c_char_p]
-crypter.encrypt_text.restype = ctypes.c_char_p
+    # Set return type for functions
+    encrypt_lib.encrypt.restype = ctypes.c_char_p
+    encrypt_lib.decrypt.restype = ctypes.c_char_p
 
-crypter.decrypt_text.argtypes = [ctypes.c_char_p]
-crypter.decrypt_text.restype = ctypes.c_char_p
+    return encrypt_lib
 
-crypter.free_memory.argtypes = [ctypes.c_char_p]
-crypter.free_memory.restype = None
+# Example Usage
+if __name__ == "__main__":
+    encrypt_lib = load_encrypt_dll()
+
+    text = "HELLO"
+    key = "KEY"
+
+    encrypted = encrypt_lib.encrypt(text.encode(), key.encode()).decode()
+    decrypted = encrypt_lib.decrypt(encrypted.encode(), key.encode()).decode()
+
+    print("Encrypted:", encrypted)
+    print("Decrypted:", decrypted)
