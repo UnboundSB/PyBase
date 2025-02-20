@@ -70,15 +70,21 @@ Crypter crypter;
 
 // C functions to expose
 extern "C" {
-    EXPORT const char* encrypt_text(const char* input) {
-        static std::string encrypted;
-        encrypted = crypter.encrypt(input);
-        return encrypted.c_str();
+    EXPORT char* encrypt_text(const char* input) {
+        std::string encrypted = crypter.encrypt(input);
+        char* result = (char*)malloc(encrypted.size() + 1);  // Allocate memory
+        std::strcpy(result, encrypted.c_str());
+        return result;  // Caller must free() the memory
     }
 
-    EXPORT const char* decrypt_text(const char* input) {
-        static std::string decrypted;
-        decrypted = crypter.decrypt(input);
-        return decrypted.c_str();
+    EXPORT char* decrypt_text(const char* input) {
+        std::string decrypted = crypter.decrypt(input);
+        char* result = (char*)malloc(decrypted.size() + 1);
+        std::strcpy(result, decrypted.c_str());
+        return result;
+    }
+
+    EXPORT void free_memory(char* ptr) {
+        free(ptr);  // Free allocated memory
     }
 }
