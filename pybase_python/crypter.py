@@ -35,8 +35,8 @@ def decrypt(key, val):
 
 # test case example
 def test_vigenere():
-    key = "SECRET"
-    original_text = "HELLO world !@#123WORLD"
+    key = "tHE KEY IS SECRET"
+    original_text = "The_moDULe IS W0RK1NG FI&3"
     
     encrypted_text = encrypt(key, original_text)
     print(f"Encrypted: {encrypted_text}")

@@ -84,7 +84,7 @@ if __name__ == "__main__":
     }
 
     # Add the new table to the schema
-    schema_manager.add_table('employees', columns, foreign_keys)
+    #schema_manager.add_table('employees', columns, foreign_keys)
 
     # Retrieve and display table information
     table_info = schema_manager.get_table_info('employees')
