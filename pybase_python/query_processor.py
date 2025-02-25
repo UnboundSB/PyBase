@@ -1,22 +1,26 @@
-def is_valid(query):
-    # Import regex module inside the function to save memory
-    import re
+from query_validator import SQLValidator
 
-    # List of valid SQL commands
-    sql_statements = [
-        "CREATE", "ALTER", "DROP", "SELECT", "INSERT", "UPDATE", "DELETE", 
-        "TRUNCATE", "RENAME", "GRANT", "REVOKE", "COMMIT", "ROLLBACK", 
-        "SAVEPOINT", "EXPLAIN", "DESCRIBE", "SHOW"
-    ]
-    
-    query=query.upper()
-    query=query.split(';')
-    print(query)
+class QueryProcessor(SQLValidator):
+    sql_commands = {
+        "DDL": ["CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME"],
+        "DML": ["INSERT", "UPDATE", "DELETE"],
+        "DQL": ["SELECT"],
+        "DCL": ["GRANT", "REVOKE"],
+        "TCL": ["COMMIT", "ROLLBACK", "SAVEPOINT"]
+    }
 
+    def __init__(self, query):
+        self.query = query.strip()  # Removing unnecessary spaces
+        self.is_valid = self.is_valid_sql(self.query)
+        self._throw_invalid_exception()
 
-# Test the function with various queries
-print(is_valid("SELECT * FROM users;INSERT INTO users (name, age) VALUES ('John', 30);"))  # True
-print(is_valid("INSERT INTO users (name, age) VALUES ('John', 30);"))  # True
-print(is_valid("UPDATE users SET name = 'Jane' WHERE id = 1;"))  # True
-print(is_valid("DELETE FROM users WHERE id = 1;"))  # True
-print(is_valid("SELECT FROM users"))
+    def _throw_invalid_exception(self):
+        if not self.is_valid:
+            raise ValueError(f"Invalid SQL query: {self.query}")
+
+# Example Usage:
+try:
+    q = QueryProcessor("SELECT * FROM Table;")
+    print("Query is valid!")
+except ValueError as e:
+    print(e)

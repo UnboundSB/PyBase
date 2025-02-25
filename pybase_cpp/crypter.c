@@ -7,7 +7,7 @@
 void vigenere_cipher(char *text, const char *key, int decrypt) {
     int text_len = strlen(text), key_len = strlen(key);
     for (int i = 0, j = 0; i < text_len; i++) {
-        if (text[i] >= 'A' && text[i] <= 'Z') {
+        if (text[i] >= 'A' && text[i] <= 'Z') { 
             text[i] = 'A' + (text[i] - 'A' + (decrypt ? -1 : 1) * (key[j % key_len] - 'A')) % 26;
             if (text[i] < 'A') text[i] += 26;
             j++;
