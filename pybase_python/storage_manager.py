@@ -4,6 +4,10 @@ import os
 import pickle
 from crypter import encrypt, decrypt
 
+class NonExistantTableException(Exception):
+    def  __init__(self):
+        super().__init__("Warning: the table does not exists")
+
 class SchemaManager:
     def __init__(self, database_name):
         self.database_name = database_name
@@ -48,6 +52,8 @@ class SchemaManager:
     def get_passkey(self):
         return self.schema['0lkjKo09']
 
+
+
 class DatabaseManager:
     def __init__(self, schema_manager):
         self.schema_manager = schema_manager
@@ -63,7 +69,7 @@ class DatabaseManager:
     def insert_data(self, table_name, data):
         table_info = self.schema_manager.get_table_info(table_name)
         if not table_info:
-            raise ValueError(f"Table '{table_name}' does not exist.")
+            raise NonExistantTableException
         
         if table_info['primary_key'] not in data:
             raise ValueError("Primary key is missing in the data.")
@@ -79,6 +85,8 @@ class DatabaseManager:
         self.save_database()
     
     def fetch_data(self, table_name):
+        if table_name not in self.database:
+            raise NonExistantTableException
         encrypted_data = self.database.get(table_name, {})
         passkey = self.schema_manager.get_passkey()
         decrypted_data = {col: [decrypt(passkey, val) for val in values] for col, values in encrypted_data.items()}
@@ -88,12 +96,12 @@ if __name__ == "__main__":
     schema_manager = SchemaManager("test_db")
     db_manager = DatabaseManager(schema_manager)
     
-    schema_manager.add_table("student", ["id", "name", "age"], "id")
-    schema_manager.add_table("children", ["child_id", "parent_id", "age"], "child_id", foreign_keys={"parent_id": "student.id", "age": "student.age"})
+    #schema_manager.add_table("student", ["id", "name", "age"], "id")
+    #schema_manager.add_table("children", ["child_id", "parent_id", "age"], "child_id", foreign_keys={"parent_id": "student.id", "age": "student.age"})
     
-    for i in range(1, 101):
-        db_manager.insert_data("student", {"id": i, "name": f"Student_{i}", "age": random.randint(18, 25)})
-        db_manager.insert_data("children", {"child_id": i, "parent_id": random.randint(1, 100), "age": random.randint(1, 17)})
+    #for i in range(1, 101):
+    #    db_manager.insert_data("student", {"id": i, "name": f"Student_{i}", "age": random.randint(18, 25)})
+    #    db_manager.insert_data("children", {"child_id": i, "parent_id": random.randint(1, 100), "age": random.randint(1, 17)})
     
     student_data = db_manager.fetch_data("student")
     children_data = db_manager.fetch_data("children")
