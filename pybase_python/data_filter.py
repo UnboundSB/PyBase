@@ -1,101 +1,107 @@
-import random
-import string
+import re
+from storage_manager import *
 import os
-import pickle
-from crypter import encrypt, decrypt
 
-class NonExistantTableException(Exception):
-    def  __init__(self):
-        super().__init__("Warning: the table does not exist")
+# Exception when the database directory is not existent
+class NonExistantDatabaseException(Exception):
+    def __init__(self):
+        super().__init__("Warning: the database does not exist")
 
-class SchemaManager:
-    def __init__(self, database_name):
-        self.database_name = database_name
-        self.schema_file = f"database/{database_name}.pbs"
-        self.db_file = f"database/{database_name}.pbf"
-        
-        if not os.path.exists("database"):
-            os.makedirs("database")
-        
-        if os.path.exists(self.schema_file):
-            with open(self.schema_file, "rb") as f:
-                self.schema = pickle.load(f)
-        else:
-            self.schema = {'tables': {}, '0lkjKo09': self.generate_passkey()}
-            self.save_schema()
-        
-        if not os.path.exists(self.db_file):
-            with open(self.db_file, "wb") as f:
-                pickle.dump({}, f)
-        
-    def generate_passkey(self):
-        return ''.join(random.choices(string.ascii_letters + string.digits, k=21))
-    
-    def save_schema(self):
-        with open(self.schema_file, "wb") as f:
-            pickle.dump(self.schema, f)
-    
-    def add_table(self, table_name, columns, primary_key, foreign_keys=None):
-        if table_name in self.schema['tables']:
-            raise ValueError(f"Table '{table_name}' already exists in the schema.")
-        
-        self.schema['tables'][table_name] = {
-            'columns': {col: [] for col in columns},
-            'primary_key': primary_key,
-            'foreign_keys': foreign_keys or {},
-        }
-        self.save_schema()
-    
-    def get_table_info(self, table_name):
-        return self.schema.get('tables', {}).get(table_name)
-    
-    def get_passkey(self):
-        return self.schema['0lkjKo09']
+# Exception when the table name is not given
+class TableNotPresent(Exception):
+    def __init__(self):
+        super().__init__("The table does not exist in the current scenario")
 
-class DatabaseManager:
-    def __init__(self, schema_manager):
-        self.schema_manager = schema_manager
-        self.db_file = schema_manager.db_file
+# Exception when column is not present 
+class ColumnNotPresent(Exception):
+    def __init__(self):
+        super().__init__("The column specified does not exist")
+
+class Select:
+    def __init__(self, database, query):
+        self.query = query.strip()
+        self.database = database
         
-        with open(self.db_file, "rb") as f:
-            self.database = pickle.load(f)
-    
-    def save_database(self):
-        with open(self.db_file, "wb") as f:
-            pickle.dump(self.database, f)
-    
-    def insert_data(self, table_name, data):
-        table_info = self.schema_manager.get_table_info(table_name)
-        if not table_info:
-            raise NonExistantTableException
+        if not os.path.exists(self.database):
+            raise NonExistantDatabaseException()
         
-        if table_info['primary_key'] not in data:
-            raise ValueError("Primary key is missing in the data.")
+        self.columns, self.table_name = self._extract_columns_and_table()
+        self.constraints = self._extract_constraints()
+
+        if not self.table_name or not self.columns:
+            raise TableNotPresent()
         
-        if table_name not in self.database:
-            self.database[table_name] = {col: [] for col in table_info['columns']}
-        
-        passkey = self.schema_manager.get_passkey()
-        for column, value in data.items():
-            encrypted_value = encrypt(passkey, value)
-            self.database[table_name][column].append(encrypted_value)
-        
-        self.save_database()
-    
-    def fetch_data(self, table_name):
-        if table_name not in self.database:
-            raise NonExistantTableException
-        encrypted_data = self.database.get(table_name, {})
-        passkey = self.schema_manager.get_passkey()
-        decrypted_data = {col: [decrypt(passkey, val) for val in values] for col, values in encrypted_data.items()}
-        return decrypted_data
-    
-if __name__ == "__main__":
-    schema_manager = SchemaManager("test_db")
-    db_manager = DatabaseManager(schema_manager)
-    
-    student_data = db_manager.fetch_data("student")
-    children_data = db_manager.fetch_data("children")
-    print(f"Fetched {len(student_data['id'])} records from 'student' table.")
-    print(f"Fetched {len(children_data['child_id'])} records from 'children' table.")
-    print(student_data)
+    def _extract_columns_and_table(self):
+        """Extracts selected columns and table name from the query."""
+        match = re.match(r"(?i)SELECT\s+(.*?)\s+FROM\s+(\w+)", self.query)
+        if match:
+            columns = match.group(1).strip()
+            table_name = match.group(2).strip()
+            
+            # Handle SELECT * scenario
+            if columns == "*":
+                return ["*"], table_name
+
+            # Handle multiple columns and potential aliases
+            columns = [col.strip() for col in columns.split(",")]
+            return columns, table_name
+        return None, None
+
+    def _extract_constraints(self):    
+        """Extracts WHERE, GROUP BY, HAVING, and ORDER BY clauses from the query."""
+        constraints = {}
+
+        # Extract WHERE clause
+        where_match = re.search(r"\bWHERE\b\s+(.+?)(?=\s*\b(GROUP BY|HAVING|ORDER BY|LIMIT|$)\b)", 
+                                self.query, re.IGNORECASE)
+        constraints["WHERE"] = where_match.group(1).strip() if where_match else None
+
+        # Extract GROUP BY clause
+        group_by_match = re.search(r"\bGROUP BY\b\s+(.+?)(?=\s*\b(HAVING|ORDER BY|LIMIT|$)\b)", 
+                                   self.query, re.IGNORECASE)
+        constraints["GROUP BY"] = group_by_match.group(1).strip() if group_by_match else None
+
+        # Extract HAVING clause
+        having_match = re.search(r"\bHAVING\b\s+(.+?)(?=\s*\b(ORDER BY|LIMIT|$)\b)",  
+                                 self.query, re.IGNORECASE)
+        constraints["HAVING"] = having_match.group(1).strip() if having_match else None
+
+        # Extract ORDER BY clause
+        order_by_match = re.search(r"\bORDER BY\b\s+(.+?)(?=\s*\b(LIMIT|$)\b)", 
+                                   self.query, re.IGNORECASE)
+        constraints["ORDER BY"] = order_by_match.group(1).strip() if order_by_match else None
+
+        return constraints
+
+
+# Example Usage
+q1 = "SELECT id, name, age, marks, department FROM student WHERE department = 'CS' AND marks > 80;"
+q2 = "SELECT department, AVG(marks) AS avg_marks FROM student GROUP BY department;"
+q3 = "SELECT department, AVG(marks) AS avg_marks FROM student GROUP BY department HAVING AVG(marks) > 75;"
+q4 = "SELECT id, name, age, marks, department FROM student ORDER BY marks DESC;"
+
+s1 = Select("database", q1)
+s2 = Select("database", q2)
+s3 = Select("database", q3)
+s4 = Select("database", q4)
+
+print(f"Table Name: {s1.table_name}")
+print(f"Columns: {s1.columns}")
+print(f"Constraints: {s1.constraints}")  # Output: salary > 50000 AND department = 'IT'
+print(f"Table Name: {s2.table_name}")
+print(f"Columns: {s2.columns}")
+print(f"Constraints: {s2.constraints}") # Output: age > 30
+print(f"Table Name: {s3.table_name}")
+print(f"Columns: {s3.columns}")
+print(f"Constraints: {s3.constraints}")  # Output: name LIKE 'John%'
+print(f"Table Name: {s4.table_name}")
+print(f"Columns: {s4.columns}")
+print(f"Constraints: {s4.constraints}")  # Output: None
+
+query = "SELECT id, name, age, marks, department FROM student WHERE department = 'CS' AND marks > 80 ORDER BY name"
+match = re.search(r"(?i)WHERE\s+(.+?)(?=\s*(ORDER BY|GROUP BY|HAVING|LIMIT|$))", query)
+
+if match:
+    print("✅ Extracted WHERE clause:", match.group(1))
+else:
+    print("❌ No WHERE clause found.")

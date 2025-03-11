@@ -9,11 +9,11 @@ class NonExistantTableException(Exception):
         super().__init__("Warning: the table does not exists")
 
 class SchemaManager:
-    def __init__(self, database_name):
+    def __init__(self, database_name, encryption_level=1):
         self.database_name = database_name
         self.schema_file = f"database/{database_name}.pbs"
         self.db_file = f"database/{database_name}.pbf"
-        
+        self.encryption_level=encryption_level
         if not os.path.exists("database"):
             os.makedirs("database")
         
@@ -29,7 +29,7 @@ class SchemaManager:
                 pickle.dump({}, f)
         
     def generate_passkey(self):
-        return ''.join(random.choices(string.ascii_letters + string.digits, k=21))
+        return ''.join(random.choices(string.ascii_letters + string.digits, k=self.encryption_level))
     
     def save_schema(self):
         with open(self.schema_file, "wb") as f:
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     #schema_manager.add_table("student", ["id", "name", "age"], "id")
     #schema_manager.add_table("children", ["child_id", "parent_id", "age"], "child_id", foreign_keys={"parent_id": "student.id", "age": "student.age"})
     
-    #for i in range(1, 101):
+    #for i in range(1, 1001):
     #    db_manager.insert_data("student", {"id": i, "name": f"Student_{i}", "age": random.randint(18, 25)})
     #    db_manager.insert_data("children", {"child_id": i, "parent_id": random.randint(1, 100), "age": random.randint(1, 17)})
     
