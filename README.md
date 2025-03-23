@@ -22,7 +22,7 @@ PyBase is a lightweight, high-performance relational database management system 
 ### Steps
 1. Clone the repository:
    ```sh
-   git clone https://github.com/yourusername/PyBase.git
+   git clone https://github.com/UnboundSB/PyBase.git
    cd PyBase
    ```
 2. Create and activate a virtual environment:
